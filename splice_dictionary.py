@@ -5,6 +5,7 @@ import fnmatch
 from datetime import datetime
 import cdms2 as cdms
 from string import upper,lower
+import collections
 
 def locate(pattern, root=os.curdir):
     '''Locate all files matching supplied filename pattern in and below
@@ -35,6 +36,11 @@ def parse_filename(fname):
     return d
 
 def newest_version(listoffiles):
+    """Get the newest version of the xml according to Jeff Painter's instructions."""
+    if type(listoffiles) is not type([]):
+        return listoffiles
+    if len(listoffiles)==1:
+        return listoffiles[0]
     versions = np.array([x.split("ver-")[1].split(".")[0] for x in listoffiles])
     d = parse_filename(listoffiles[0])
     model = d["model"]
@@ -50,32 +56,65 @@ def newest_version(listoffiles):
     
 
 def check_parentage(fname):
-
+    """Returns either the parent file or list of strings with errors"""
     d = parse_filename(fname)
     openf = cdms.open(fname)
-    meta_r = str(openf.attributes["realization"])
-    
-    meta_i = str(openf.attributes["initialization_method"])
-    meta_p = str(openf.attributes["physics_version"])
+    keys = openf.attributes.keys()
+    flags = []
+    if "realization" not in keys:
+        flags+[ "no realization specified"]
+        meta_r="NA"
+    else:
+        meta_r = str(openf.attributes["realization"])
+
+
+    if "initialization_method" not in keys:
+        flags+=[ "no initialization specified"]
+        meta_i="NA"
+    else:
+        meta_i = str(openf.attributes["initialization_method"])
+    if "physics_version" not in keys:
+        flags+=["no physics version specified"]
+        meta_p = "NA"
+    else:
+        meta_p = str(openf.attributes["physics_version"])
+
     meta_rip = "r"+meta_r+"i"+meta_i+"p"+meta_p
-    parent_rip = openf.attributes["parent_experiment_rip"]
+
+    if "parent_experiment_rip" not in keys:
+        flags+=["parent_experiment_rip not specified"]
+        parent_rip="NA"
+    else:
+        parent_rip = openf.attributes["parent_experiment_rip"]
+
     if meta_rip != d["rip"]:
-        print "model rip and metadata rip do not match"
-        return 0
+        flags+=["model rip ("+d["rip"]+") and metadata rip ("+meta_rip+") do not match"]
+
     if meta_rip != parent_rip:
-        print "model rip and parent rip do not match"
-        return 1
-    parent = openf.attributes["parent_experiment"]
-    if parent != "historical":
-        print "parent experiment is "+parent
-        return 2
-    d["experiment"] = parent
+        flags+=["metadata rip ("+meta_rip+") and parent rip ("+parent_rip+") do not match"] 
+
+    if "parent_experiment" not in openf.attributes.keys():
+        flags+=["no parent experiment specified"]
+        parent = "NA"
+    else:    
+        parent = openf.attributes["parent_experiment"]
+        if lower(parent) != "historical":
+            flags+=["parent experiment is "+parent]
+      
+    if "branch_time" not in openf.attributes.keys():
+        flags +=["branch time not specified"]
+    
+    d["experiment"] = "historical"
     d["version"] = "*"
-    return newest_version([x for x in find_files(d)])
-    
-    
-    
+    files = list(find_files(d))
+    if len(files)==0:
+        flags+=["parent file not found in "+d["root"]]
+    if len(flags)==0:
+        return newest_version(files)
+    else:
+        return flags
         
+            
         
 
 def find_files(d,print_search_string = False):
@@ -104,5 +143,36 @@ user = os.environ["USER"]
 #d = {}
 #d[user+" "+time] = {}
 
+
+def remove_duplicate_versions(listoffiles):
+    remove_this = []
+    remove_version = lambda x: x.split(".ver")[0]
+    files_rv = map(remove_version, listoffiles)
+    dcounter = collections.Counter(files_rv)
+    duplicates = [n for n, i in dcounter.iteritems() if i > 1]
+    for dupe in duplicates:
+        
+        versions = [listoffiles[x] for x in np.argwhere([x.find(dupe)==0 for x in files_rv])]
+        
+        nv = newest_version(versions)
+        for version in versions:
+            if version != nv:
+                remove_this +=[version]
+    [listoffiles.remove(x) for x in remove_this]
+    return listoffiles
+def flag(d,latest_version_only = True):
+    """Use the check_parentage function to flag files with potential splicing issues.   """
+    flagged = {}
+    ok = {}
+    all_files = find_files(d)
+    if latest_version_only:
+        all_files = remove_duplicate_versions(list(all_files))
+    for f in all_files:
+        parent = check_parentage(f)
+        if type(parent)==type([]):
+            flagged[f]=parent
+        else:
+            ok[f] = parent
+    return flagged, ok
 
 
