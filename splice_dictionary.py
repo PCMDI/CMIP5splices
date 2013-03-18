@@ -1,3 +1,13 @@
+"""@package splice_dictionary
+
+@mainpage Documentation for the splice_dictionary package
+@author Kate Marvel
+@date 2013
+
+
+
+"""
+
 import genutil
 import os
 import numpy as np
@@ -120,7 +130,7 @@ def check_parentage(fname):
 def find_files(d,print_search_string = False):
     '''Return all datafiles that match criteria specified in the dictionary d'''
     template = "%(root)%(experiment)/%(realm)/%(time_frequency)/%(variable)/cmip5.%(model).%(experiment).%(rip).mo.%(realm).%(tableid).%(variable).%(version).xml"
-    
+     
     filename = genutil.StringConstructor(template)
     
     # set defaults
@@ -160,6 +170,7 @@ def remove_duplicate_versions(listoffiles):
                 remove_this +=[version]
     [listoffiles.remove(x) for x in remove_this]
     return listoffiles
+
 def flag(d,latest_version_only = True):
     """Use the check_parentage function to flag files with potential splicing issues.   """
     flagged = {}
@@ -168,6 +179,7 @@ def flag(d,latest_version_only = True):
     if latest_version_only:
         all_files = remove_duplicate_versions(list(all_files))
     for f in all_files:
+        print f
         parent = check_parentage(f)
         if type(parent)==type([]):
             flagged[f]=parent
@@ -175,4 +187,12 @@ def flag(d,latest_version_only = True):
             ok[f] = parent
     return flagged, ok
 
-
+def compare_flags(flag_a,flag_b):
+    """Given two flag dictionaries, check to see if problems arise from same model"""
+    keys_a = flag_a.keys()
+    keys_b = flag_b.keys()
+    mod_rip = lambda keys: set([x.split(".")[1]+"."+x.split(".")[3] for x in keys])
+    set_a = mod_rip(keys_a)
+    set_b = mod_rip(keys_b)
+    df = set_a.symmetric_difference(set_b)
+    return set_a.intersection(df), set_b.intersection(df)
