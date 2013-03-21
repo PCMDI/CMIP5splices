@@ -1,56 +1,70 @@
-import cdms2 as cdms
-import splice_dictionary as splice
+import cdms2
+import os
+import splice_dictionary
 import cdtime
-import sys, getopt
-import MV2 as MV
-import cdutil,genutil
-import numpy as np
+import sys
+import argparse
 
-cdms.setNetcdfShuffleFlag(0)
-cdms.setNetcdfDeflateFlag(0)
-cdms.setNetcdfDeflateLevelFlag(0)
+cdms2.setNetcdfShuffleFlag(0)
+cdms2.setNetcdfDeflateFlag(0)
+cdms2.setNetcdfDeflateLevelFlag(0)
 
 def splice_files(argv):
+    parser = argparse.ArgumentParser(description="splice two files")
+    parser.add_argument('--realm')
+    parser.add_argument('--version')
+    parser.add_argument('--rip')
+    parser.add_argument('--time_frequency')
+    parser.add_argument('--experiment')
+    parser.add_argument('--tableid')
+    parser.add_argument('--variable')
+    parser.add_argument('--model')
+    parser.add_argument('--root')
+    parser.add_argument('--dictionary')
+    parser.add_argument('--runflag',action='store_true')
+    parser.add_argument('--f',action='store_true')
+    parser.add_argument('--out',help='Directoy to dump output to',default="/export/marvel1/SeaIce/SPLICED/")
     #Parse the command line arguments
-    try:
-        opts, args = getopt.getopt(argv,"-f" , ['realm=',\
-                                                    'version=',\
-                                                    'rip=',\
-                                                    'time_frequency=',\
-                                                    'experiment=',\
-                                                    'tableid=',\
-                                                    'variable=',\
-                                                    'model=',\
-                                                    'root='])
-
-    except getopt.GetoptError:
-        print 'Usage: locate_cmip5.py --realm <realm> --version <version>  --rip <rip>'
-        sys.exit(2)
-
+    args = parser.parse_args(argv)
     #-f option prints flagged files to FLAG.txt  Other options populate dictionary keys
     d = {}
     list_flagged_files = False
-    for opt, arg in opts:
-        if opt == '-f':
-            list_flagged_files = True
-        else:
-            key = opt.split("--")[-1]
-            d[key] = arg
+    for k, v in args._get_kwargs():
+        if k=='f':
+            list_flagged_files = v
+        elif k=='dictionary':
+            if v is None:
+                args.dictionary = 'flagged.dict'
+        elif k == 'runflag':
+            pass
+        elif v is not None:
+            d[k] = v
     print d
 
 
+    
     #Get the flagged and OK files
-    flagged, ok = splice.flag(d)
-
+    if args.runflag is False and not os.path.exists(args.dictionary):
+        args.runflag = True
+    if args.runflag:
+        flagged, ok = splice_dictionary.flag(d)
+        f=open(args.dictionary,'w')
+        f.write(repr((flagged,ok)))
+        f.close()
+    else:
+        f=open(args.dictionary)
+        flagged,ok = eval(f.read())
+        f.close()
+        
     #Loop over files that passed initial test
-
-    for rcp in ok.keys():
+    print ok.keys()
+    for rcp in ok.keys()[:2]:
 
         historical = ok[rcp]
 
          #get attributes based on historical and rcp filenames/
-        hist_dict = splice.parse_filename(historical)
-        rcp_dict = splice.parse_filename(rcp)
+        hist_dict = splice_dictionary.parse_filename(historical)
+        rcp_dict = splice_dictionary.parse_filename(rcp)
         variable = hist_dict["variable"]
         experiment = "hist_"+rcp_dict["experiment"]
         version = hist_dict["version"] + "+"+rcp_dict["version"]
@@ -64,54 +78,66 @@ def splice_files(argv):
         rcp_start = cdtime.comptime(2006,1,1)
         rcp_stop = cdtime.comptime(2011,12,31)
 
-        #get historical data
-        hist_file = cdms.open(historical)
-        hist_data = hist_file(variable,time=(hist_start,hist_stop))
-        hist_file.close()
-       
+        #get historical data time axis
+        hist_file = cdms2.open(historical)
+        hist_data = hist_file[variable]
+        hist_times = hist_data.getTime().clone()
+        h1,h2 = hist_times.mapInterval((hist_start,hist_stop))
+        hist_times = hist_times.subAxis(h1,h2)
+
         #get rcp data
-        rcp_file = cdms.open(rcp)
-        rcp_data = rcp_file(variable,time=(rcp_start , rcp_stop))
-        rcp_file.close()
+        rcp_file = cdms2.open(rcp)
+        rcp_data = rcp_file[variable]
+        rcp_times=rcp_data.getTime().clone()
+        r1, r2 = rcp_times.mapInterval((rcp_start , rcp_stop))
+        rcp_times=rcp_times.subAxis(r1,r2)
 
         #set up a new spliced time axis.  
-        hist_times = hist_data.getTime()
-        rcp_times = rcp_data.getTime()
         st = hist_times.asComponentTime()+rcp_times.asComponentTime()
         units = hist_times.units
         calendar = hist_times.getCalendar()
         st = [x.torel(units,calendar).value for x in st]
-        spliced_time = cdms.createAxis(st)
+        spliced_time = cdms2.createAxis(st)
         spliced_time.id = "time"
         spliced_time.units = hist_times.units
         spliced_time.designateTime()
 
-        #create a new variable to hold spliced data.  .
-        spliced = MV.zeros((len(spliced_time), hist_data.shape[1],hist_data.shape[2]))
-        spliced[:hist_data.shape[0]]=hist_data
-        spliced[hist_data.shape[0]:hist_data.shape[0]+rcp_data.shape[0]]=rcp_data
-        spliced.id = hist_data.id
-        spliced.name = hist_data.name
-        spliced.units = hist_data.units
 
-        #Set appropriate axes
-        spliced.setAxis(0,spliced_time)
-        spliced.setAxis(1,hist_data.getAxis(1))
-        spliced.setAxis(2,hist_data.getAxis(2))
-        
-       
         #determine write path and write filename
-        path = "/export/marvel1/SeaIce/SPLICED/"+experiment+"/"+variable+"/"
+        path = os.path.join(args.out,experiment,variable)
         splicefile = historical.split("/")[-1].replace("historical","spliced")
         splicefile = splicefile.replace(hist_dict["version"],version)
         splicefile = splicefile.replace("xml","nc")
 
         #write the file
-        writefile = cdms.open(path+splicefile,"w")
-        writefile.write(spliced)
+        fout = os.path.join(path,splicefile)
+        os.makedirs(os.path.dirname(fout))
+        writefile = cdms2.open(fout,"w")
+
+
+        #create a new variable to hold spliced data.  .
+        # Ok hist times
+        ntimes = 12 # 1 year at a time
+        j=0
+        for i in range(h1,h2,ntimes):
+            m = min(h2,i+ntimes)
+            print "hist:",i,m
+            tmp = hist_data(time=slice(i,m))
+            tmp.setAxis(0,spliced_time.subAxis(j,j+m-i))
+            writefile.write(tmp)
+            j+=m-i
+        # Ok same for rcp
+        #Set appropriate axes
+        for i in range(r1,r2,ntimes):
+            m = min(r2,i+ntimes)
+            print "rcp:",i,m
+            tmp = rcp_data(time=slice(i,m))
+            tmp.setAxis(0,spliced_time.subAxis(j,j+m-i))
+            writefile.write(tmp)
+            j+=m-i
+        
+       
         writefile.close()
-
-
 
 if __name__ == "__main__":
    splice_files(sys.argv[1:])
