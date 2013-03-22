@@ -23,7 +23,7 @@ def splice_files(argv):
     parser.add_argument('--dictionary')
     parser.add_argument('--runflag',action='store_true')
     parser.add_argument('--f',action='store_true')
-    parser.add_argument('--out',help='Directoy to dump output to',default="/export/marvel1/SeaIce/SPLICED/")
+    parser.add_argument('--out',help='Directory to dump output to',default="/export/marvel1/SeaIce/SPLICED/")
     #Parse the command line arguments
     args = parser.parse_args(argv)
     #-f option prints flagged files to FLAG.txt  Other options populate dictionary keys
@@ -39,7 +39,7 @@ def splice_files(argv):
             pass
         elif v is not None:
             d[k] = v
-    print d
+    #print d
 
 
     
@@ -58,8 +58,8 @@ def splice_files(argv):
         
     #Loop over files that passed initial test
     print ok.keys()
-    for rcp in ok.keys()[:2]:
-
+    for rcp in ok.keys():
+        print rcp
         historical = ok[rcp]
 
          #get attributes based on historical and rcp filenames/
@@ -81,14 +81,22 @@ def splice_files(argv):
         #get historical data time axis
         hist_file = cdms2.open(historical)
         hist_data = hist_file[variable]
-        hist_times = hist_data.getTime().clone()
+        try:
+            hist_times = hist_data.getTime().clone()
+        except:
+            print "Couldn't clone "+historical
+            continue
         h1,h2 = hist_times.mapInterval((hist_start,hist_stop))
         hist_times = hist_times.subAxis(h1,h2)
 
         #get rcp data
         rcp_file = cdms2.open(rcp)
         rcp_data = rcp_file[variable]
-        rcp_times=rcp_data.getTime().clone()
+        try:
+            rcp_times=rcp_data.getTime().clone()
+        except:
+            print "Couldn't clone "+rcp
+            continue
         r1, r2 = rcp_times.mapInterval((rcp_start , rcp_stop))
         rcp_times=rcp_times.subAxis(r1,r2)
 
@@ -111,7 +119,10 @@ def splice_files(argv):
 
         #write the file
         fout = os.path.join(path,splicefile)
-        os.makedirs(os.path.dirname(fout))
+        try:
+            os.makedirs(os.path.dirname(fout))
+        except:
+            pass
         writefile = cdms2.open(fout,"w")
 
 
@@ -121,7 +132,7 @@ def splice_files(argv):
         j=0
         for i in range(h1,h2,ntimes):
             m = min(h2,i+ntimes)
-            print "hist:",i,m
+            #print "hist:",i,m
             tmp = hist_data(time=slice(i,m))
             tmp.setAxis(0,spliced_time.subAxis(j,j+m-i))
             writefile.write(tmp)
@@ -130,7 +141,8 @@ def splice_files(argv):
         #Set appropriate axes
         for i in range(r1,r2,ntimes):
             m = min(r2,i+ntimes)
-            print "rcp:",i,m
+            
+            #print "rcp:",i,m
             tmp = rcp_data(time=slice(i,m))
             tmp.setAxis(0,spliced_time.subAxis(j,j+m-i))
             writefile.write(tmp)
