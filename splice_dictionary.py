@@ -196,3 +196,42 @@ def compare_flags(flag_a,flag_b):
     set_b = mod_rip(keys_b)
     df = set_a.symmetric_difference(set_b)
     return set_a.intersection(df), set_b.intersection(df)
+
+
+def modify_dictionary(rcpfile,histfile = None,fname=None):
+    """Removes rcpfile from flagged dictionary and places it in okdictionary"""
+    if fname is None:
+        fname = "flagged.dict"
+    f=open(fname)
+    flagged,ok = eval(f.read())
+    f.close()
+    if rcpfile in flagged.keys():
+        problems = flagged.pop(rcpfile)
+        if histfile is None:
+            d = splice.parse_filename(rcpfile)
+            d["version"]="*"
+            d["experiment"]="historical"
+            histfile = newest_version(find_files(d))
+        print "Despite these problems:"
+        print problems
+        print "File "+rcpfile+" will be spliced with historical file "+histfile
+        ok[rcpfile]=histfile
+        f=open(fname,'w')
+        f.write(repr((flagged,ok)))
+        f.close()
+    else:
+        print rcpfile + " was not flagged!"
+    
+def move_cesm_to_ok(fname):
+    d = {}
+    d["model"]="CESM*"
+    d["realm"] = "seaIce"
+    d["experiment"]="rcp45"
+    d["variable"]='sic'
+    files = remove_duplicate_versions(find_files(d))
+    for rcpfile in files:
+        modify_dictionary(rcpfile)
+
+
+
+    
