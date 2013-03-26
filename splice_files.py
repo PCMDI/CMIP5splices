@@ -104,12 +104,13 @@ def splice_files(argv):
         st = hist_times.asComponentTime()+rcp_times.asComponentTime()
         units = hist_times.units
         calendar = hist_times.getCalendar()
+       
         st = [x.torel(units,calendar).value for x in st]
         spliced_time = cdms2.createAxis(st)
         spliced_time.id = "time"
         spliced_time.units = hist_times.units
         spliced_time.designateTime()
-
+        spliced_time.setCalendar(calendar)
 
         #determine write path and write filename
         path = os.path.join(args.out,experiment,variable)
