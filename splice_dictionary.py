@@ -222,10 +222,10 @@ def modify_dictionary(rcpfile,histfile = None,fname=None):
     if rcpfile in flagged.keys():
         problems = flagged.pop(rcpfile)
         if histfile is None:
-            d = splice.parse_filename(rcpfile)
+            d = parse_filename(rcpfile)
             d["version"]="*"
             d["experiment"]="historical"
-            histfile = newest_version(find_files(d))
+            histfile = newest_version(list(find_files(d)))
         print "Despite these problems:"
         print problems
         print "File "+rcpfile+" will be spliced with historical file "+histfile
@@ -245,6 +245,7 @@ def move_cesm_to_ok(fname):
     files = remove_duplicate_versions(find_files(d))
     for rcpfile in files:
         modify_dictionary(rcpfile)
+
 
 
 
@@ -312,4 +313,16 @@ def branch_flag(rcp,hist):
 
     return flags
 
+
+
+def pretty_print(flagged,pfile = None):
+    """ Print the flagged dictionary in human-readable format to file"""
+    if pfile is None:
+        pfile = "flags.txt"
+    f = open(pfile,"w")
+    f.write("MODEL \t \t PROBLEMS\n")
+    for bad_rcp in flagged.keys():
+        f.write(bad_rcp+"\t \t "+str(flagged[bad_rcp])+"\n")
+    f.close()
+        
 
