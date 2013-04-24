@@ -16,7 +16,7 @@ from datetime import datetime
 import cdms2 as cdms
 from string import upper,lower
 import collections
-
+import cdtime
 def locate(pattern, root=os.curdir):
     '''Locate all files matching supplied filename pattern in and below
     supplied root directory.'''
@@ -54,7 +54,12 @@ def newest_version(listoffiles):
     versions = np.array([x.split("ver-")[1].split(".")[0] for x in listoffiles])
     d = parse_filename(listoffiles[0])
     model = d["model"]
-    version_numbers = [float(x.split("v")[-1]) for x in versions]
+    version_numbers = [x.split("v")[-1] for x in versions]
+    for i in range(len(version_numbers)):
+        try:
+            version_numbers[i] = float(version_numbers[i])
+        except:
+            version_numbers[i] = 1.
     if upper(model) == "CSIRO":
         less_than_1000 = np.where(np.array(version_numbers <1000.))
         I = np.argmax(version_numbers[less_than_1000])
@@ -114,13 +119,22 @@ def check_parentage(fname):
     if "branch_time" not in openf.attributes.keys():
         flags +=["branch time not specified"]
     
+        
+
     d["experiment"] = "historical"
     d["version"] = "*"
     files = list(find_files(d))
+
     if len(files)==0:
         flags+=["parent file not found in "+d["root"]]
+    else:
+        historical = newest_version(files)
+        bf = branch_flag(fname,historical)
+        if bf is not None:
+            flags += bf
+   
     if len(flags)==0:
-        return newest_version(files)
+        return historical
     else:
         return flags
         
@@ -235,3 +249,67 @@ def move_cesm_to_ok(fname):
 
 
     
+def test_branch_time(ok):
+    btimes = {}
+    startstop={}
+    for k in ok.keys():
+        
+        rcp_file = cdms.open(k)
+        
+        hist_file = cdms.open(ok[k])
+        
+        try:
+            b = rcp_file.attributes["branch_time"]
+        except:
+            btimes[k] =  "no branch time "
+            continue
+        variable = parse_filename(k)["variable"]
+        
+
+        historical_time = hist_file[variable].getTime()
+        rcp_time = rcp_file[variable].getTime()
+        units = hist_file[variable].getTime().units
+        newunits = rcp_file[variable].getTime().units
+        calendar = hist_file[variable].getTime().getCalendar()
+        branch_time = cdtime.relativetime(b,units)
+        branch_time_new = cdtime.relativetime(b,newunits)
+        
+        actual_hist_end_time = historical_time.asComponentTime()[-1]
+        actual_rcp_start_time = rcp_time.asComponentTime()[0]
+        
+        btimes[k]= [branch_time.tocomp(),branch_time_new.tocomp()]
+        startstop[k] = [actual_hist_end_time.tocomp(),actual_rcp_start_time.tocomp()]
+    return btimes,startstop
+
+
+def branch_flag(rcp,hist):
+    rcp_file = cdms.open(rcp)
+        
+    hist_file = cdms.open(hist)
+    
+    variable = parse_filename(rcp)["variable"]
+        
+
+    historical_time = hist_file[variable].getTime()
+    rcp_time = rcp_file[variable].getTime()
+    stop = historical_time.asComponentTime()[-1]
+    start = rcp_time.asComponentTime()[0]
+
+
+    d = parse_filename(rcp)
+    model = d["model"]
+    
+    
+    if start.year !=2006:
+        if (lower(model).find("had")>=0) and (start.year == 2005):
+            flags = None
+        else:
+            print model 
+            flags = ["RCP start time is "+str(start)]
+            print flags
+    else:
+        flags = None
+
+    return flags
+
+

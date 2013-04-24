@@ -23,7 +23,7 @@ def splice_files(argv):
     parser.add_argument('--dictionary')
     parser.add_argument('--runflag',action='store_true')
     parser.add_argument('--f',action='store_true')
-    parser.add_argument('--out',help='Directory to dump output to',default="/export/marvel1/SeaIce/SPLICED/")
+    parser.add_argument('--out',help='Directory to dump output to',default="/export/marvel1/SPLICED/")
     #Parse the command line arguments
     args = parser.parse_args(argv)
     #-f option prints flagged files to FLAG.txt  Other options populate dictionary keys
@@ -76,7 +76,7 @@ def splice_files(argv):
 
         #spliced files should span 2006-2011
         rcp_start = cdtime.comptime(2006,1,1)
-        rcp_stop = cdtime.comptime(2011,12,31)
+        rcp_stop = cdtime.comptime(2012,11,1)
 
         #get historical data time axis
         hist_file = cdms2.open(historical)
