@@ -5,7 +5,7 @@ import glob
 
 
 class Reader(genutil.StringConstructor):
-    def __init__(self,template="%(root)/%(experiment)/%(realm)/%(frequency)/%(variable)/cmip5.%(model).%(experiment).%(rip).%(frequency).%(realm).%(variable).%(version).xml",model=None,frequency="mo",realm="atmos",rip="r1i1p1",root="/work/cmip5/",archiveTemplate="%(root)/_archive/%(date)_%(N)_cmip5_xml"):
+    def __init__(self,template="%(root)/%(experiment)/%(realm)/%(frequency)/%(variable)/cmip5.%(model).%(experiment).%(rip).%(frequency).%(realm).%(variable).%(version).xml",model=None,frequency="mo",realm="atmos",rip="r1i1p1",root="/work/cmip5/",archiveTemplate="%(root)/_archive/%(date)_%(N)_cmip5_xml.7z"):
         self.root=root
         self.archive= genutil.StringConstructor(archiveTemplate)
         self.template = template
@@ -14,13 +14,20 @@ class Reader(genutil.StringConstructor):
         self.frequency=frequency
         self.model=model
 
-    def get(self,variable, date= None, model=None, rip=None, realm=None, frequency=None):
+    def open(self,variable, date= None, model=None, rip=None, realm=None, frequency=None):
         for s in ["model","rip","realm","frequency"]:
             exec("tmp = %s" % s)
             if tmp is None:
                 if getattr(self,s) is None:
                     raise Exception, "You did not define or pass: %s" % s
                 exec("%s = self.%s" % (s,s))
+
+        a=open(self.findArchive(date),'rb')
+        print a
+        A = py7zlib.Archive7z(a)
+        nms = A.getnames()
+        print nms
+        
     def findArchive(self,date=None):
         if date is None:
             now = time.localtime()
