@@ -34,13 +34,15 @@ parser.add_argument("-x", "--output",
                     default='screen')
 parser.add_argument("-u", "--units",
                     help="Output Units",default="")
+parser.add_argument("-d", "--debug",
+                    help="Print Debug Messages",default=False,action="store_true")
 
 args = parser.parse_args(sys.argv[1:])
 
-print args
+if args.debug:
+    print args
 #print args.spawn
 def commonprefix(*args):
-    print "Args:",args
     return os.path.commonprefix(args).rpartition('/')[0]
    
 def dataTypeAndValue(obj,a):
@@ -80,7 +82,8 @@ class CMIP5(object):
         self.output=output
         if spawn[0]!='/': # Sets it to full path
             pwd = os.getcwd()
-            print pwd
+            if args.debug:
+                print pwd
             spawn = os.path.join(pwd,spawn)
         self.spawn=cdms2.open(spawn)
         self.units=units
@@ -88,13 +91,15 @@ class CMIP5(object):
             pass 
         except Exception,err:
             raise RuntimeError,"Could not load spawn file (%s) into cdms2: %s" % (spawn,err)
-        print "Calling find origin"
+        if args.debug:
+            print "Calling find origin"
         self.origin = self.findOrigin(origin)
         self.branch = self.findBranchTime(branch,type)
 
     def findOrigin(self,origin):
         """Automatically finds the origin from which spawn comes from"""
-        print "are we even getting here?"
+        if args.debug:
+            print "are we even getting here?"
         if origin is not None:
             try:
                 self.origin=cdms2.open(origin)
@@ -103,7 +108,8 @@ class CMIP5(object):
                 raise RuntimeError,"Could not load origin file (%s) into cdms2" % origin
 
         pnm = getattr(self.spawn,"uri",self.spawn.id).replace(self.spawn.experiment_id,self.spawn.parent_experiment_id)
-        print "pnm:",pnm
+        if args.debug:
+            print "pnm:",pnm
         pnm = pnm.replace("r%ii%ip%i" % (self.spawn.realization,self.spawn.initialization_method,self.spawn.physics_version),self.spawn.parent_experiment_rip)
         self.origin = cdms2.open(pnm)
         return self.origin
@@ -136,7 +142,8 @@ class CMIP5(object):
         else:
             f1 = self.spawn.id.split(cmndir)[1]
             f2 = self.origin.id.split(cmndir)[1]
-        print cmndir,"*****",f1,"*****",f2,"xxxxx",nvars,"xxxx",tvars
+        if args.debug:
+            print cmndir,"*****",f1,"*****",f2,"xxxxx",nvars,"xxxx",tvars
         if len(nvars)!=0:
             cdmsfmp="[[%s,[[-,-,-,-,-,%s]]],[%s,[[0,%i,-,-,-,%s],[%i,%i,-,-,-,%s]]]]" % (str(nvars),f1,str(tvars),self.branch,f2,self.branch,self.branch+len(self.spawn[tvars[0]].getTime()),f1)
         else:
@@ -166,10 +173,14 @@ class CMIP5(object):
         #Ok done with global atributes now dimensions...
         for d in self.spawn.listdimension():
             D=self.spawn.dimensionobject(d)
-            specials = ['units','id','length','bounds','long_name','axis','calendar']
+            specials = ['units','id','length','bounds','long_name','axis','calendar','partition']
             print >>f,"<axis"
             print >>f,'  datatype = "%s" ' % dataType(D[0])
             for a in specials:
+                if a in ["partition",]: # skip these
+                    continue
+                if a=="length" and D.isTime():
+                    continue
                 if not hasattr(D,a):
                     continue
                 if a=='units' and D.isTime() and self.units!="":
@@ -188,6 +199,8 @@ class CMIP5(object):
             for a in D.attributes:
                 if a in specials:
                     continue
+                if args.debug:
+                    print "looking at att:",a,getattr(D,a)
                 A,v=dataTypeAndValue(D,a)
                 print >>f, '<attr datatype = "%s" name="%s">%s</attr>' % (A,a,v)
             #now writing dims values
@@ -223,7 +236,8 @@ class CMIP5(object):
             for a in specials:
                 if not hasattr(V,a):
                     continue
-                print "getting:",V.id,a
+                if args.debug:
+                    print "getting:",V.id,a
                 A,v=dataTypeAndValue(V,a)
                 if v is None:
                     continue
@@ -250,11 +264,13 @@ class CMIP5(object):
                 break
             except:
                 pass
-        print "ok t is:",t[:]
+        if args.debug:
+            print "ok t is:",t[:]
         bout= None
         if branch is None:
             b = float(self.spawn.branch_time)
-            print b
+            if args.debug:
+                print b
         elif type == 'component':
             b = cdtime.s2c(branch)
         elif type=='index':
@@ -269,9 +285,14 @@ class CMIP5(object):
             try:
                 bout,e = t.mapInterval((b,b,'ccb'))
                 tc=t.asComponentTime()
-                print b,bout,e
+                if args.debug:
+                    print b,bout,e,tc[0],tc[-1]
                 if e-1 != bout:
-                    warnings.warn( "Hum something is odd I'm getting more than one index, please report this, command was: %s" % " ".join(sys.argv))
+                    bout,e, = t.mapInterval((b,b,'cob'))
+                    if e-1!=bout:
+                        warnings.warn( "Hum something is odd I'm getting more than one index, please report this, command was: %s" % " ".join(sys.argv))
+                        if args.debug:
+                            print b,bout,e,tc[0],tc[-1]
             except Exception,err:
                 print self.origin,err
                 raise Exception,"Could not retrieve %s in %s" % (branch,self.origin)
@@ -281,7 +302,8 @@ class CMIP5(object):
 
 def loadProject(project,*pargs,**kargs):
     if args.project == "CMIP5":
-        print "ok we are going here"
+        if args.debug:
+            print "ok we are going here"
         project = CMIP5(*pargs,**kargs)
     else:
         raise RuntimeError,"Only CMIP5 implemented at this point for automation"
@@ -294,50 +316,8 @@ spawn = getattr(project.spawn,"uri",project.spawn.id)
 origin = getattr(project.origin,"uri",project.origin.id)
 branch = project.branch
 
-print spawn,origin,branch
-
-# print "done?",
-
-def span(file,var='y'):
-    tc = file[var].getTime().asComponentTime()
-    print tc[0],tc[-1]
-    return tc
-
-print "project origin:",project.origin
-print "project spawn:",project.spawn
-span(project.origin)
-span(project.spawn)
-
-#tmp = tempfile.mkstemp()#dir='.')
-tmp = tempfile.NamedTemporaryFile()
-#Ok we now know what to do let's create the temporary xml file
-#cmd = "%s/bin/cdscan --verbose=0 %s %s %s" % (sys.prefix, args.cdscan, origin, spawn)
-
-#print cmd
-#p = subprocess.Popen(cmd,shell=True,
-#                     stdin=subprocess.PIPE,
-#                     stdout=subprocess.PIPE,
-#                     stdout=tmp,
-#                     stderr=subprocess.PIPE)
-#                     stderr=tmp)
-
-
-#print p.stdout.readlines()
-#print p.stderr.readlines()
-#p.wait()
-
-#tmp.seek(0)
-#print tmp.read()
-#tmp.seek(0)
-
-#e = xml.etree.ElementTree.parse(tmp)
-
-#d = e.getroot()
-#fm = d.attrib["cdms_filemap"]
-def findN(s,sub,N):
-    return s.replace(sub,"XXX",N-1).find(sub) - (3-len(sub))*(N-1)
-
-#f1 = findN(fm,"[",9)
+if args.debug:
+    print spawn,origin,branch
 
 project.genXml()
 
