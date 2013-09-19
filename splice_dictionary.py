@@ -17,6 +17,7 @@ import cdms2 as cdms
 from string import upper,lower
 import collections
 import cdtime
+
 def locate(pattern, root=os.curdir):
     '''Locate all files matching supplied filename pattern in and below
     supplied root directory.'''
@@ -28,10 +29,16 @@ def locate(pattern, root=os.curdir):
 def parse_filename(fname):
     '''Parse the full path+filename.  Return a dictionary whose keys are model metadata.'''
     try:
+        
         root,work,cmip,experiment,realm,mo_new,variable,filename = fname.split("/")
-        cmip,model,experiment,rip,mo,realm,tableid,variable,version,ext = filename.split(".")
+        if len(filename.split(".")) == 11:
+            cmip,model,experiment,rip,mo,realm,tableid,variable,version,latest,ext = filename.split(".")
+        else:
+           cmip,model,experiment,rip,mo,realm,tableid,variable,version,ext = filename.split(".") 
+           latest = "??"
     except:
-        print "filename must be of the form %(root)%(experiment)/%(realm)/mo/%(variable)/cmip5.%(model).%(experiment).%(rip).mo.%(realm).%(variable).%(version).xml"
+
+        print "filename must be of the form %(root)%(experiment)/%(realm)/mo/%(variable)/cmip5.%(model).%(experiment).%(rip).mo.%(realm).%(variable).%(version).%(latest).xml"
         raise TypeError
     d = {}
     d["root"]="/".join([root,work,cmip,""])
@@ -43,6 +50,7 @@ def parse_filename(fname):
     d["version"] = version
     d["time_frequency"] = mo_new
     d["tableid"] = tableid
+    d["latest"]= latest
     return d
 
 def newest_version(listoffiles):

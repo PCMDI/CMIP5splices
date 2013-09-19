@@ -4,7 +4,7 @@ import splice_dictionary
 import cdtime
 import sys
 import argparse
-
+import datetime
 cdms2.setNetcdfShuffleFlag(0)
 cdms2.setNetcdfDeflateFlag(0)
 cdms2.setNetcdfDeflateLevelFlag(0)
@@ -53,7 +53,9 @@ def splice_files(argv):
         f.close()
     else:
         f=open(args.dictionary)
+        
         flagged,ok = eval(f.read())
+
         f.close()
         
     #Loop over files that passed initial test
@@ -74,9 +76,11 @@ def splice_files(argv):
         hist_start = cdtime.comptime(1979,1,1)
         hist_stop = cdtime.comptime(2005,12,31)
 
-        #spliced files should span 2006-2011
+        #spliced files should span 2006-present
+        
         rcp_start = cdtime.comptime(2006,1,1)
-        rcp_stop = cdtime.comptime(2012,11,1)
+        time_now = datetime.datetime.now()
+        rcp_stop = cdtime.comptime(time_now.year,time_now.month,time_now.day)
 
         #get historical data time axis
         hist_file = cdms2.open(historical)
