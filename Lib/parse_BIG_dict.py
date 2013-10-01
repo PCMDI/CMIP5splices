@@ -6,12 +6,12 @@ import csv
 
 
 class Parser():
-    def __init__(self):
-        f = open("BIG_DICTIONARY.dat","r")
+    def __init__(self,name="BIG_DICTIONARY"):
+        f = open("%s.dat" % name,"r")
         self.bigflag = pickle.load(f)
         f.close()
         
-        f = open("BIG_DICTIONARY_ok.dat","r")
+        f = open("%s_ok.dat" % name,"r")
         self.bigok = pickle.load(f)
         f.close()
         
@@ -27,7 +27,6 @@ class Parser():
         for k in np.array(self.bigok.keys())[rcp_index_ok]:
             self.ok[k]=self.bigok[k]
         
-
         self.flagged_models = np.array([k.split(".")[1] for k in self.flag.keys()])
         self.ok_models = np.array([k.split(".")[1] for k in self.ok.keys()])
 
@@ -46,9 +45,6 @@ class Parser():
             d[k] = self.flag[k]
         return d
 
-
-    
-
     def write_realm(self):
         csvfile = open("Metadata_errors_realms.csv","wb")
         csvwriter = csv.writer(csvfile)
@@ -57,7 +53,6 @@ class Parser():
         realms = sorted(Counter(fkeys+okkeys).keys())
         
         header = ["MODEL","flag"]+ realms
-
         
         csvwriter.writerow(header)
         
@@ -73,16 +68,9 @@ class Parser():
             flags = Counter(l)
             for badness,num in iter(flags.most_common()):
                 BadnessCount = Counter([k.split(".")[6] if badness in problem_dict[k] else None for k in problem_dict.keys()])
-            
                 realm_bad = [BadnessCount[x] for x in realms]
                 csvwriter.writerow([model,badness]+realm_bad)
         csvfile.close()
-
-            
-    
-
-
-    
 
     #def check(self,model):
      #   flag = self.get_flagged(model)
