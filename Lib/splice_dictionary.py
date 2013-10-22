@@ -319,6 +319,17 @@ def branch_flag(rcp,hist):
     else:
         flags = None
 
+    #Charles Doutriaux add, checking if branch time described in metadata of rcp actually exsit in parent
+    B=rcp_file.branch_time
+    try:
+        ok = historical_time.mapinterval((B,B))
+    except:
+        print model
+        if flags is None:
+            flags = ["RCP branch_time does not exisit in parent file"]
+        else:
+            flags+=["RCP branch_time does not exisit in parent file"]
+        print flags
     return flags
 
 
