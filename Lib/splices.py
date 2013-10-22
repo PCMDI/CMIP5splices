@@ -50,6 +50,7 @@ class CMIP5Splicer(Splicer):
     def __init__(self,spawn,origin=None,branch=None,type=None,output='screen',units='',debug=False):
         """Initialize the class with spwan file"""
         self.debug = debug
+        print "DEBUG",self.debug
         self.output=output
         if spawn[0]!='/': # Sets it to full path
             pwd = os.getcwd()
@@ -65,7 +66,11 @@ class CMIP5Splicer(Splicer):
         if self.debug:
             print "Calling find origin"
         self.origin = self.findOrigin(origin)
+        if self.debug:
+            print "Origin:",self.origin
         self.branch = self.findBranchTime(branch,type)
+        if self.debug:
+            print "Branch:",self.branch
 
     def findOrigin(self,origin):
         """Automatically finds the origin from which spawn comes from"""
@@ -236,7 +241,9 @@ class CMIP5Splicer(Splicer):
             except:
                 pass
         if self.debug:
-            print "ok t is:",t[:]
+            print "ok t is:",t
+            print "ORIGIN:",self.origin
+            print "V:",v
         bout= None
         if branch is None:
             b = float(self.spawn.branch_time)
@@ -252,10 +259,15 @@ class CMIP5Splicer(Splicer):
                 raise RuntimeError,"Your start index (%i) is greater than the length of the origin (%i)" % (bout,len(t))
         else:
             b=float(branch)
+        if self.debug:
+            print "b is",b,self.spawn
         if bout is None: # need to convert value to index
             try:
+                print "OK FIRST MAP INTERVAL",t
                 bout,e = t.mapInterval((b,b,'ccb'))
+                print "FINISHED"
                 tc=t.asComponentTime()
+                print "WELL:",b,bout,tc
                 if self.debug:
                     print b,bout,e,tc[0],tc[-1]
                 if e-1 != bout:

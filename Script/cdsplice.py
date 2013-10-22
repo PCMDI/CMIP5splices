@@ -29,8 +29,9 @@ parser.add_argument("-x", "--output",
                     default='screen')
 parser.add_argument("-u", "--units",
                     help="Output Units",default="")
-parser.add_argument("-d", "--debug",
+parser.add_argument("-D", "--debug",
                     help="Print Debug Messages",default=False,action="store_true")
+parser.add_argument("-d","--dryrun",help="Print only, no execution",action="store_true")
 
 args = parser.parse_args(sys.argv[1:])
 
@@ -42,7 +43,7 @@ if args.debug:
 def loadProject(project,*pargs,**kargs):
     if args.project == "CMIP5":
         if args.debug:
-            print "ok we are going here"
+            print "ok we are going here",pargs,kargs
         project = cmip5utils.CMIP5Splicer(*pargs,**kargs)
     else:
         raise RuntimeError,"Only CMIP5 implemented at this point for automation"
@@ -50,13 +51,13 @@ def loadProject(project,*pargs,**kargs):
 
 project = None
 # figures out the source
-project = loadProject(args.project,args.spawn,origin=args.origin,branch=args.branch,type=args.type,output=args.output,units=args.units)
+project = loadProject(args.project,args.spawn,origin=args.origin,branch=args.branch,type=args.type,output=args.output,units=args.units,debug=args.debug)
 spawn = getattr(project.spawn,"uri",project.spawn.id)
 origin = getattr(project.origin,"uri",project.origin.id)
 branch = project.branch
 
-if args.debug:
+if args.dryrun:
     print spawn,origin,branch
-
-project.genXml()
+else:
+    project.genXml()
 
