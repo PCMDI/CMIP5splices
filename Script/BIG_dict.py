@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import cmip5utils.splice_dictionary as splice
 import argparse
 import sys

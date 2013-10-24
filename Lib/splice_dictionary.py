@@ -2,6 +2,7 @@
 
 @mainpage Documentation for the splice_dictionary package
 @author Kate Marvel
+@author Charles Doutriaux
 @date 2013
 
 
@@ -17,7 +18,7 @@ import cdms2 as cdms
 from string import upper,lower
 import collections
 import cdtime
-
+defaultTemplate = "%(root)%(experiment)/%(realm)/%(time_frequency)/%(variable)/cmip5.%(model).%(experiment).%(rip).%(time_frequency).%(realm).%(tableid).%(variable).%(version).%(latest).xml"
 def locate(pattern, root=os.curdir):
     '''Locate all files matching supplied filename pattern in and below
     supplied root directory.'''
@@ -38,7 +39,7 @@ def parse_filename(fname):
            latest = "??"
     except:
 
-        print "filename must be of the form %(root)%(experiment)/%(realm)/mo/%(variable)/cmip5.%(model).%(experiment).%(rip).mo.%(realm).%(variable).%(version).%(latest).xml"
+        print "filename must be of the form %s" % defaultTemplate
         raise TypeError
     d = {}
     d["root"]="/".join([root,work,cmip,""])
@@ -149,9 +150,9 @@ def check_parentage(fname):
             
         
 
-def find_files(d,print_search_string = False):
+def find_files(d,print_search_string = False,template=defaultTemplate):
     '''Return all datafiles that match criteria specified in the dictionary d'''
-    template = "%(root)%(experiment)/%(realm)/%(time_frequency)/%(variable)/cmip5.%(model).%(experiment).%(rip).mo.%(realm).%(tableid).%(variable).%(version).xml"
+    #template = "%(root)%(experiment)/%(realm)/%(time_frequency)/%(variable)/cmip5.%(model).%(experiment).%(rip).mo.%(realm).%(tableid).%(variable).%(version).%(latest).xml"
      
     filename = genutil.StringConstructor(template)
     
@@ -322,13 +323,13 @@ def branch_flag(rcp,hist):
     #Charles Doutriaux add, checking if branch time described in metadata of rcp actually exsit in parent
     B=rcp_file.branch_time
     try:
-        ok = historical_time.mapinterval((B,B))
-    except:
-        print model
+        ok = historical_time.mapInterval((B,B,'ccb'))
+    except Exception,err:
+        print model,B,historical_time,err
         if flags is None:
-            flags = ["RCP branch_time does not exisit in parent file"]
+            flags = ["RCP branch_time does not exist in parent file"]
         else:
-            flags+=["RCP branch_time does not exisit in parent file"]
+            flags+=["RCP branch_time does not exist in parent file"]
         print flags
     return flags
 

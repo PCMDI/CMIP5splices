@@ -35,6 +35,9 @@ def dataTypeAndValue(obj,a):
     v = getattr(obj,a)
     if isinstance(v,(numpy.ndarray,cdms2.tvariable.TransientVariable)) and len(v)==1:
         return dataType(v),v[0]
+    elif isinstance(v,str):
+        import xml.sax.saxutils as sax
+        return dataType(v),sax.escape(sax.unescape(v))
     else:
         return dataType(v),v
 
@@ -50,7 +53,8 @@ class CMIP5Splicer(Splicer):
     def __init__(self,spawn,origin=None,branch=None,type=None,output='screen',units='',debug=False):
         """Initialize the class with spwan file"""
         self.debug = debug
-        print "DEBUG",self.debug
+        if self.debug:
+            print "DEBUG",self.debug
         self.output=output
         if spawn[0]!='/': # Sets it to full path
             pwd = os.getcwd()
@@ -71,6 +75,41 @@ class CMIP5Splicer(Splicer):
         self.branch = self.findBranchTime(branch,type)
         if self.debug:
             print "Branch:",self.branch
+
+    def genFileMap(self,tvar):
+        po=[]
+        p = cdms2.dataset.parseFileMap(self.origin.cdms_filemap)
+        print "ORIGIN DIRECTORY IS:",self.origin.directory
+        for s in p:
+            if tvar in s[0]: # Ok this the time section we're looking for
+                new = []
+                for b in s[1]:
+                    N=list(b)
+                    if b[0] < self.branch:
+                        if b[1]>self.branch:
+                            N[1]=self.branch
+                        N[-1]=os.path.join(self.origin.directory,N[-1])
+                        new.append(N)
+                    else:
+                        break
+                    p2 = cdms2.dataset.parseFileMap(self.spawn.cdms_filemap)
+                    for s2 in p2:
+                        if tvar in s2[0]: # Ok this the time section we're looking for
+                            for b2 in s2[1]:
+                                N=list(b2)
+                                N[0]+=self.branch
+                                N[1]+=self.branch
+                                N[-1]=os.path.join(self.spawn.directory,N[-1])
+                                new.append(N)
+                        else:
+                           continue 
+                po.append([s[0],new])
+            else:
+                print s
+                po.append(s)
+
+        return str(po).replace("None,","-,").replace("'","")
+
 
     def findOrigin(self,origin):
         """Automatically finds the origin from which spawn comes from"""
@@ -111,21 +150,31 @@ class CMIP5Splicer(Splicer):
                 nvars.append(V)
         # Find common path
         cmndir = commonprefix(self.spawn.id,self.origin.id)+"/"
-        if cmndir=='/':
-            cmndir=""
+        if self.spawn.id!='none':
             f1 = self.spawn.id
+        else:
+            f1 = self.spawn.uri
+        if self.origin.id!='none':
             f2 = self.origin.id
         else:
-            f1 = self.spawn.id.split(cmndir)[1]
-            f2 = self.origin.id.split(cmndir)[1]
+            f2 = self.origin.uri
+        if cmndir=='/':
+            cmndir=""
+        else:
+            f1 = f1.split(cmndir)[1]
+            f2 = f2.split(cmndir)[1]
         if self.debug:
             print cmndir,"*****",f1,"*****",f2,"xxxxx",nvars,"xxxx",tvars
-        if len(nvars)!=0:
-            cdmsfmp="[[%s,[[-,-,-,-,-,%s]]],[%s,[[0,%i,-,-,-,%s],[%i,%i,-,-,-,%s]]]]" % (str(nvars),f1,str(tvars),self.branch,f2,self.branch,self.branch+len(self.spawn[tvars[0]].getTime()),f1)
+        if self.spawn.id!='none':
+            if len(nvars)!=0:
+                cdmsfmp="[[%s,[[-,-,-,-,-,%s]]],[%s,[[0,%i,-,-,-,%s],[%i,%i,-,-,-,%s]]]]" % (str(nvars),f1,str(tvars),self.branch,f2,self.branch,self.branch+len(self.spawn[tvars[0]].getTime()),f1)
+            else:
+                cdmsfmp="[[%s,[[0,%i,-,-,-,%s],[%i,%i,-,-,-,%s]]]]" % (str(tvars),self.branch,f2,self.branch,self.branch+len(self.spawn[tvars[0]].getTime()),f1)
         else:
-            cdmsfmp="[[%s,[[0,%i,-,-,-,%s],[%i,%i,-,-,-,%s]]]]" % (str(tvars),self.branch,f2,self.branch,self.branch+len(self.spawn[tvars[0]].getTime()),f1)
+            cdmsfmp = self.genFileMap(tvars[0])
         ## ok get info from spawn
         specials = ['institution','calendar','frequency','Conventions','history']
+        excludes = ["directory","cdms_filemap","cdsplice_origin","cdsplice_spawn","cdsplice_branch","id"]
         for a in specials:
             if not hasattr(self.spawn,a):
                 continue
@@ -137,12 +186,18 @@ class CMIP5Splicer(Splicer):
         print >> f,">"
 
         for a in self.spawn.attributes:
-            if a in specials:
+            if a in specials or a in excludes:
                 continue
             A,v = dataTypeAndValue(self.spawn,a)
             print >>f, '<attr datatype="%s" name="%s" >%s</attr>' % (A,a,v)
-        print >> f, '<attr datatype="String" name="cdsplice_origin">%s</attr>' % self.origin.id
-        print >> f, '<attr datatype="String" name="cdsplice_spawn">%s</attr>' % self.spawn.id
+        if self.origin.id == 'none':
+            print >> f, '<attr datatype="String" name="cdsplice_origin">%s</attr>' % self.origin.uri
+        else:
+            print >> f, '<attr datatype="String" name="cdsplice_origin">%s</attr>' % self.origin.id
+        if self.spawn.id == 'none':
+            print >> f, '<attr datatype="String" name="cdsplice_spawn">%s</attr>' % self.spawn.uri
+        else:
+            print >> f, '<attr datatype="String" name="cdsplice_spawn">%s</attr>' % self.spawn.id
         print >> f, '<attr datatype="Long" name="cdsplice_branch">%i</attr>' % self.branch
         print >>f, '<attr datatype="String" name="cdsplice_command">%s</attr>' % " ".join(sys.argv)
 
@@ -243,8 +298,8 @@ class CMIP5Splicer(Splicer):
         if self.debug:
             print "ok t is:",t
             print "ORIGIN:",self.origin
-            print "V:",v
-        bout= None
+            #print "V:",v
+        bout = None
         if branch is None:
             b = float(self.spawn.branch_time)
             if self.debug:
@@ -263,13 +318,10 @@ class CMIP5Splicer(Splicer):
             print "b is",b,self.spawn
         if bout is None: # need to convert value to index
             try:
-                print "OK FIRST MAP INTERVAL",t
                 bout,e = t.mapInterval((b,b,'ccb'))
-                print "FINISHED"
                 tc=t.asComponentTime()
-                print "WELL:",b,bout,tc
                 if self.debug:
-                    print b,bout,e,tc[0],tc[-1]
+                    print b,bout,e,tc[bout],tc[0],tc[-1]
                 if e-1 != bout:
                     bout,e, = t.mapInterval((b,b,'cob'))
                     if e-1!=bout:

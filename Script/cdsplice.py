@@ -42,8 +42,6 @@ if args.debug:
 
 def loadProject(project,*pargs,**kargs):
     if args.project == "CMIP5":
-        if args.debug:
-            print "ok we are going here",pargs,kargs
         project = cmip5utils.CMIP5Splicer(*pargs,**kargs)
     else:
         raise RuntimeError,"Only CMIP5 implemented at this point for automation"
@@ -58,6 +56,7 @@ branch = project.branch
 
 if args.dryrun:
     print spawn,origin,branch
+    print cdms2.dataset.parseFileMap(project.genFileMap("clt"))
 else:
     project.genXml()
 
