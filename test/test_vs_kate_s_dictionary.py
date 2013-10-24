@@ -38,14 +38,13 @@ def link_model(model):
         print cmd
         p = subprocess.Popen(shlex.split(cmd),stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         p.wait()
-        print p.stderr.readlines()
-        print p.stdout.readlines()
     return ok
 
-m = P.ok_models[0]
-
-ok = link_model(m)
-
+for m in P.ok_models:
+    try:
+      ok = link_model(m)
+    except:
+        pass
 
 
 

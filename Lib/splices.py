@@ -79,15 +79,14 @@ class CMIP5Splicer(Splicer):
     def genFileMap(self,tvar):
         po=[]
         p = cdms2.dataset.parseFileMap(self.origin.cdms_filemap)
-        print "ORIGIN DIRECTORY IS:",self.origin.directory
         for s in p:
             if tvar in s[0]: # Ok this the time section we're looking for
                 new = []
                 for b in s[1]:
                     N=list(b)
-                    if b[0] < self.branch:
-                        if b[1]>self.branch:
-                            N[1]=self.branch
+                    if b[0] < self.branch+1:
+                        if b[1]>self.branch+1:
+                            N[1]=self.branch+1
                         N[-1]=os.path.join(self.origin.directory,N[-1])
                         new.append(N)
                     else:
@@ -97,16 +96,23 @@ class CMIP5Splicer(Splicer):
                         if tvar in s2[0]: # Ok this the time section we're looking for
                             for b2 in s2[1]:
                                 N=list(b2)
-                                N[0]+=self.branch
-                                N[1]+=self.branch
+                                N[0]+=self.branch+1
+                                N[1]+=self.branch+1
                                 N[-1]=os.path.join(self.spawn.directory,N[-1])
                                 new.append(N)
                         else:
                            continue 
                 po.append([s[0],new])
             else:
-                print s
-                po.append(s)
+                N=list(s)
+                print N
+                O=N[1]
+                print O
+                P=O[0]
+                P[-1]=os.path.join(self.origin.directory,P[-1])
+                O[0]=P
+                N[1]=O
+                po.append(N)
 
         return str(po).replace("None,","-,").replace("'","")
 
@@ -251,7 +257,7 @@ class CMIP5Splicer(Splicer):
                 b2=D.asComponentTime()[0]
                 if e1.cmp(b2)>-1:
                     raise Exception,"Original file time of splicing (%s) is in the future of spawned data (%s)"%(e1,b2)
-                print >>f, numpy.array(T1[:self.branch].tolist()+D[:].tolist())
+                print >>f, numpy.array(T1[:self.branch+1].tolist()+D[:].tolist())
             else:
                 print >> f,D[:]
             print >>f,"</axis>"
@@ -328,6 +334,10 @@ class CMIP5Splicer(Splicer):
                         warnings.warn( "Hum something is odd I'm getting more than one index, please report this, command was: %s" % " ".join(sys.argv))
                         if self.debug:
                             print b,bout,e,tc[0],tc[-1]
+                if tc[bout].month==1:
+                    bout-=1
+                if not tc[bout]==12:
+                    raise Exception,"Error not spliced from a december month"
             except Exception,err:
                 print self.origin,err
                 raise Exception,"Could not retrieve %s in %s" % (branch,self.origin)
