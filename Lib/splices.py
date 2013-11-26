@@ -105,9 +105,7 @@ class CMIP5Splicer(Splicer):
                 po.append([s[0],new])
             else:
                 N=list(s)
-                print N
                 O=N[1]
-                print O
                 P=O[0]
                 P[-1]=os.path.join(self.origin.directory,P[-1])
                 O[0]=P
@@ -298,15 +296,18 @@ class CMIP5Splicer(Splicer):
         for v in self.origin.variables:
             try:
                 t=self.origin[v].getTime()
-                break
-            except:
+                if t is not None:
+                    break
+            except Exception,err:
                 pass
+        if t is None:
+            raise Exception,"Could not find a time axis for any of the following variables: %s" % self.origin.variables
         if self.debug:
-            print "ok t is:",t
-            print "ORIGIN:",self.origin
-            #print "V:",v
+            print "V:",v
         bout = None
+        forced=True
         if branch is None:
+            forced=False
             b = float(self.spawn.branch_time)
             if self.debug:
                 print b
@@ -325,6 +326,8 @@ class CMIP5Splicer(Splicer):
         if bout is None: # need to convert value to index
             try:
                 bout,e = t.mapInterval((b,b,'ccb'))
+                if self.debug:
+                    print "bout,e:",bout,e
                 tc=t.asComponentTime()
                 if self.debug:
                     print b,bout,e,tc[bout],tc[0],tc[-1]
@@ -334,10 +337,13 @@ class CMIP5Splicer(Splicer):
                         warnings.warn( "Hum something is odd I'm getting more than one index, please report this, command was: %s" % " ".join(sys.argv))
                         if self.debug:
                             print b,bout,e,tc[0],tc[-1]
-                if tc[bout].month==1:
-                    bout-=1
-                if not tc[bout]==12:
-                    raise Exception,"Error not spliced from a december month"
+                if self.debug:
+                    print "TC BOUT:",tc[bout]
+                if not forced:
+                    if tc[bout].month==1:
+                        bout-=1
+                    if not tc[bout]==12:
+                        raise Exception,"Error not spliced from a december month"
             except Exception,err:
                 print self.origin,err
                 raise Exception,"Could not retrieve %s in %s" % (branch,self.origin)
