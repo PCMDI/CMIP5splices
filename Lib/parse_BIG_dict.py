@@ -4,7 +4,6 @@ import numpy as np
 from collections import Counter
 import csv
 
-
 class Parser():
     def __init__(self,name="BIG_DICTIONARY"):
         f = open("%s.dat" % name,"r")
@@ -30,6 +29,11 @@ class Parser():
         self.flagged_models = np.array([k.split(".")[1] for k in self.flag.keys()])
         self.ok_models = np.array([k.split(".")[1] for k in self.ok.keys()])
 
+    def get_ok_models(self):
+        return list(set(self.ok_models))
+
+    def get_flagged_models(self):
+        return list(set(self.flagged_models))
 
     def get_ok(self,model):
         d = {}
