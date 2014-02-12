@@ -5,6 +5,45 @@ import cdms2 as cdms
 import cdutil
 import MV2 as MV
 import cdtime
+import difflib
+
+def get_corresponding_var(fname,var='pr'):
+    """Returns file name of a variable corresponding as close a spossible to the input filename
+    Original Author: Kate Marvel
+    Tweaked for multiple variables by: Charles Doutriaux
+    """
+    vari =fname.split(".")[7]
+    if len(glob.glob(fname.replace(vari,var))) == 1:
+        return glob.glob(fname.replace(vari,var))[0]
+    else:
+        fnames = glob.glob(fname.replace(vari,var).split(".ver")[0]+"*")
+        if len(fnames)>0:
+            i = np.argmax(map(version_num,fnames))
+            return fnames[i]
+        else:
+            possmats = glob.glob(fname.replace(vari,var).split("cmip5.")[0]+"*")
+            return difflib.get_close_matches(fname,possmats)[0]
+
+def get_corresponding_control(fname):
+    """Returns filename of picontrol corresponding to input filename
+    Original Author: Kate Marvel
+    """
+    rn = fname.split(".")[2]
+    rip = fname.split(".")[3]
+    before_rip,after_rip = fname.replace(rn,"piControl").split(rip)
+    before_ver = after_rip.split("ver")[0]
+    fnames = glob.glob(before_rip+"r1i1p1"+before_ver+"*")
+    
+    if len(fnames)>0:
+        i = np.argmax(map(version_num,fnames))
+        return fnames[i]
+    else:
+        print "CORRESPONDING CONTROL NOT FOUND FOR "+fname
+        
+        possmats = glob.glob(fname.replace(rn,"piControl").split("cmip5.")[0]+"*")
+        print "USING " +difflib.get_close_matches(fname,possmats)[0]
+        return difflib.get_close_matches(fname,possmats)[0]
+
 
 def get_latest_version(listoffiles):
     version_numbers = map(lambda x: x.split("ver-")[-1].split(".")[0], listoffiles)
