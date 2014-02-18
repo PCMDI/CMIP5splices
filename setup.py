@@ -8,6 +8,6 @@ setup (name = "cmip5utils",
        url = "https://github.com/doutriaux1/CMIP5splices/wiki",
        packages = ['cmip5utils'],
        package_dir = {'cmip5utils': 'Lib'},
-       scripts = ['Script/cdsplice.py','Script/BIG_dict.py'],
+       scripts = ['Script/cdsplice.py','Script/BIG_dict.py','Script/combine_models_ann_glb.py'],
       )
     
