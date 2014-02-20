@@ -37,14 +37,17 @@ tmpl = genutil.StringConstructor(os.path.join(p.input,"%(exp)","%(realm)","mo","
 tmpl.exp = p.exp
 tmpl.var = p.var
 tmpl.realm = p.realm
-tmpl.rip=p.rip
+if p.rip in ["AA",]:
+  tmpl.rip="r*i1p*"
+else:
+  tmpl.rip=p.rip
 tmpl.table=p.table
 tmpl.model="*"
-
 print tmpl()
 
 lst = glob.glob(tmpl())
 print lst
+
 
 models = {}
 for l in lst:
@@ -52,13 +55,25 @@ for l in lst:
   m=sp[1]
   r=sp[3]
   if models.has_key(m):
-    if not r in models[m]:
-      models[m].append(r)
+    if p.rip in ["AA",]:
+      sp[3] = cmip5utils.datamine.getMiscRIPs(m,p.rip)
+      if l in glob.glob(".".join(sp)):
+        models[m].add(r)
+    else:
+      if not r in models[m]:
+        models[m].add(r)
   else:
-    models[m]=[r,]
+    if p.rip in ["AA",]:
+      sp[3] = cmip5utils.datamine.getMiscRIPs(m,p.rip)
+      if sp[3] is None:
+        print "No rips for:",m
+        sp[3]='None'
+      if l in glob.glob(".".join(sp)):
+        models[m]=set([r,])
+    else:
+      models[m]=set([r,])
 
 print models
-
 nmod = len(models.keys())
 files = []
 starts = []
@@ -109,6 +124,7 @@ elif p.time=="min":
 elif p.time=="common":
   start=max(starts)
   end=min(ends)
+  Nt = end.year-start.year+1
 
 print len(models),"from",start,"to",end
 
@@ -119,6 +135,7 @@ if p.add_pr:
 failed_models = []
 for l in p.levels:
   models_used = []
+  forcings_used = []
   V=p.var
   if l==0:
     V="pr"
@@ -162,6 +179,8 @@ for l in p.levels:
       failed_models.append(fnm)
       continue
     models_used.append(models_axis[i])
+    if p.rip in ["AA",]:
+      forcings_used.append(f.forcing)
     print s.shape,'read'
     s=cdutil.averager(s,axis='xy')
     print s.shape,'averaged'
@@ -183,6 +202,8 @@ for l in p.levels:
   M=cdms2.createAxis(numpy.arange(len(models_used)))
   M.id = "models"
   M.models = repr(models_used)
+  if p.rip in ["AA",]:
+    M.forcings = repr(forcings_used)
   print out.shape
   print len(M)
   out.setAxis(0,M)

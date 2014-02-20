@@ -200,9 +200,33 @@ def ensemble_average(basedir, grid = None, func = None):
     M.name = M.id
     
     return M
-    
-            
-    
+
+misc = {
+    "AA": {
+      "GFDL-ESM2M" : "r1i1p5",
+      "CanESM2" : "r*i1p4",
+      "CSIRO-Mk3-6-0" : "r*i1p4",
+      "GISS-E2-H" : "r*i1p107",
+      "GISS-E2-R" : "r*i1p107",
+      "NorESM1-M" : "r1i1p1",
+      "FGOALS-g2" : "r2i1p1",
+      "IPSL-CM5A-LR" : "r1i1p3",
+      "GISS-E2-H" : "r*i1p310",
+      "GISS-E2-R" : "r*i1p310",
+      "GFDL-CM3" : "r*i1p1",
+      "CCSM4" : "r*i1p10",
+      "CESM1-CAM5" : "r*i1p10"
+      }
+    }
+def getMiscRIPs(model,forcing="AA",errorExit=False):
+  if not forcing in misc.keys():
+    raise Exception,"No such forcing: %s" % (forcing) 
+  else:
+    r = misc[forcing].get(model,None)
+    if r is None and errorExit:
+      raise Exception,"Unknown model %s for forcing %s, could not return matching rips" % (model,forcing)
+    return r
+
 if __name__ == "__main__":
     rn = "historical-rcp85"
     start = cdtime.comptime(1865,1,1)
