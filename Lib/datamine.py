@@ -7,6 +7,14 @@ import MV2 as MV
 import cdtime
 import difflib
 
+
+def version_num(fname):
+    v = fname.split("ver-")[1].split(".")[0]
+    if v[0]=='v':
+        return int(v[1:])
+    else:
+        return int(v)
+
 def get_corresponding_var(fname,var='pr'):
     """Returns file name of a variable corresponding as close a spossible to the input filename
     Original Author: Kate Marvel
