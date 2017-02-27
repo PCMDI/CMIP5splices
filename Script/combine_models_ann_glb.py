@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import cdms2
 import cdutil
 import os
@@ -13,7 +15,8 @@ cdms2.setNetcdfShuffleFlag(value) ## where value is either 0 or 1
 cdms2.setNetcdfDeflateFlag(value) ## where value is either 0 or 1
 cdms2.setNetcdfDeflateLevelFlag(value) ## where value is a integer between 0 and 9 included
 
-p = argparse.ArgumentParser(description="Produces (model,time,level) global averages")
+p = argparse.ArgumentParser(description="Produces (model,time,level) global averages",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 p.add_argument('-e','--exp',default='abrupt4xCO2')
 p.add_argument('-v','--var',default='ta')

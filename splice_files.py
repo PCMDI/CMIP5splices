@@ -1,6 +1,6 @@
 import cdms2
 import os
-import splice_dictionary
+from cmip5utils import splice_dictionary
 import cdtime
 import sys
 import argparse

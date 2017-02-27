@@ -34,12 +34,17 @@ def parse_filename(fname):
         root,work,cmip,experiment,realm,mo_new,variable,filename = fname.split("/")
         if len(filename.split(".")) == 11:
             cmip,model,experiment,rip,mo,realm,tableid,variable,version,latest,ext = filename.split(".")
+        elif len(filename.split(".")) == 12:
+            cmip,model,experiment,rip,mo,realm,tableid,variable,version,latest,crp,ext = filename.split(".")
+            latest = latest+"."+crp
         else:
            cmip,model,experiment,rip,mo,realm,tableid,variable,version,ext = filename.split(".") 
            latest = "??"
     except:
 
         print "filename must be of the form %s" % defaultTemplate
+        print "You have:",fname
+        print "SPLIT:",len(filename.split("."))
         raise TypeError
     d = {}
     d["root"]="/".join([root,work,cmip,""])
@@ -82,11 +87,15 @@ def newest_version(listoffiles):
 def check_parentage(fname):
     """Returns either the parent file or list of strings with errors"""
     d = parse_filename(fname)
-    openf = cdms.open(fname)
+    try:
+        openf = cdms.open(fname)
+    except:
+        flags = ["Could not open file name: %s" % fname]
+        return flags
     keys = openf.attributes.keys()
     flags = []
     if "realization" not in keys:
-        flags+[ "no realization specified"]
+        flags+=[ "no realization specified"]
         meta_r="NA"
     else:
         meta_r = str(openf.attributes["realization"])
@@ -183,6 +192,8 @@ def remove_duplicate_versions(listoffiles):
     files_rv = map(remove_version, listoffiles)
     dcounter = collections.Counter(files_rv)
     duplicates = [n for n, i in dcounter.iteritems() if i > 1]
+    print "DUPES:",duplicates
+    print "N DUPES:",len(duplicates),len(dcounter.keys())
     for dupe in duplicates:
         
         versions = [listoffiles[x] for x in np.argwhere([x.find(dupe)==0 for x in files_rv])]
@@ -293,14 +304,23 @@ def test_branch_time(ok):
 
 
 def branch_flag(rcp,hist):
-    rcp_file = cdms.open(rcp)
+    try:
+        rcp_file = cdms.open(rcp)
+    except:
+        return ["RCP file not available",]
         
-    hist_file = cdms.open(hist)
+    try:
+        hist_file = cdms.open(hist)
+    except:
+        return ["Historical file no available",]
     
     variable = parse_filename(rcp)["variable"]
         
+    if hist_file[variable] is None:
+        return ["Historical variable '%s' does not exist" % variable,]
 
     historical_time = hist_file[variable].getTime()
+
     rcp_time = rcp_file[variable].getTime()
     stop = historical_time.asComponentTime()[-1]
     start = rcp_time.asComponentTime()[0]

@@ -1,6 +1,6 @@
 #!/usr/local/uvcdat/latest/bin/python
 import sys, getopt
-from splice_dictionary import find_files
+from cmip5utils.splice_dictionary import find_files
 
 def main(argv):
     try:
