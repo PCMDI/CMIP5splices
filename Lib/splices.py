@@ -9,8 +9,6 @@ def commonprefix(*args):
 
 def dataType(obj):
     if isinstance(obj,(numpy.ndarray,cdms2.tvariable.TransientVariable)):
-        print "OBJ:",type(obj), obj.ndim
-    if isinstance(obj,(numpy.ndarray,cdms2.tvariable.TransientVariable)):
         if obj.ndim>0 and len(obj)==1:
             if obj.dtype == numpy.float32:
                 return "Float"
