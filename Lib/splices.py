@@ -8,14 +8,19 @@ def commonprefix(*args):
     return os.path.commonprefix(args).rpartition('/')[0]
 
 def dataType(obj):
-    if isinstance(obj,(numpy.ndarray,cdms2.tvariable.TransientVariable)) and len(obj)==1:
-        if obj.dtype == numpy.float32:
-            return "Float"
-        elif obj.dtype in [numpy.int,numpy.int64]:
-            return "Long"
-        elif obj.dtype == numpy.int32:
-            return "Int"
-        elif obj.dtype in [numpy.float,numpy.float64]:
+    if isinstance(obj,(numpy.ndarray,cdms2.tvariable.TransientVariable)):
+        print "OBJ:",type(obj), obj.ndim
+    if isinstance(obj,(numpy.ndarray,cdms2.tvariable.TransientVariable)):
+        if obj.ndim>0 and len(obj)==1:
+            if obj.dtype == numpy.float32:
+                return "Float"
+            elif obj.dtype in [numpy.int,numpy.int64]:
+                return "Long"
+            elif obj.dtype == numpy.int32:
+                return "Int"
+            elif obj.dtype in [numpy.float,numpy.float64]:
+                return "Double"
+        elif obj.ndim==0:
             return "Double"
         
     if isinstance(obj,(int,numpy.int,numpy.int32,numpy.int64)):
